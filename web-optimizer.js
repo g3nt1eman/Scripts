@@ -35,13 +35,12 @@
             this.activeOptimizer = null;
         }
         
-        async init() {
+        init() {
             console.log(`多网站优化器启动 - 当前网站: ${this.hostname}`);
             
-            // 等待模块加载完成（带重试机制）
-            const modulesReady = await this.waitForModules();
-            if (!modulesReady) {
-                console.error('优化器模块加载失败，请检查网络连接或模块文件');
+            // 直接检查模块是否已加载（@require已预加载）
+            if (!this.checkModulesLoaded()) {
+                console.error('优化器模块未正确加载，请检查@require配置');
                 return;
             }
             
@@ -109,6 +108,8 @@
         }
 
         
+
+        
         cleanup() {
             if (this.activeOptimizer && typeof this.activeOptimizer.destroy === 'function') {
                 this.activeOptimizer.destroy();
@@ -120,20 +121,24 @@
     // 创建优化器管理实例
     const optimizerManager = new SiteOptimizerManager();
     
-    // 等待页面加载完成后执行优化
-    async function initOptimizer() {
+    // 初始化优化器
+    function initOptimizer() {
         try {
-            await optimizerManager.init();
+            optimizerManager.init();
         } catch (error) {
             console.error('优化器初始化失败:', error);
         }
     }
     
-    // 页面加载完成后执行优化
+    // 立即执行优化，不等待DOM加载
+    initOptimizer();
+    
+    // 同时监听DOM变化，确保动态内容也被处理
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initOptimizer);
-    } else {
-        initOptimizer();
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM加载完成，重新检查优化');
+            // 可以在这里添加额外的检查逻辑
+        });
     }
     
     // 页面卸载时清理资源

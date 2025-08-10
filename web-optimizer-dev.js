@@ -71,20 +71,16 @@
             this.initStartTime = Date.now();
         }
         
-        async init() {
+        init() {
             const endTimer = performanceTimer('优化器初始化');
             debugLog(`优化器启动 - 当前网站: ${this.hostname}`);
             
-            // 检查开发服务器
-            const serverOnline = await checkDevServer();
-            if (!serverOnline) {
-                console.warn('开发服务器未运行，请启动: python3 dev-server.py');
-                this.showServerError();
-            }
+            // 检查开发服务器状态（非阻塞）
+            this.checkServerStatus();
             
-            // 检查模块是否正确加载
+            // 直接检查模块是否已加载
             if (!this.checkModulesLoaded()) {
-                console.error('优化器模块未正确加载');
+                console.error('优化器模块未正确加载，请检查本地服务器');
                 this.showLoadError();
                 return;
             }
@@ -266,6 +262,20 @@
             }, 15000);
         }
         
+        // 非阻塞检查服务器状态
+        checkServerStatus() {
+            checkDevServer().then(serverOnline => {
+                if (serverOnline) {
+                    debugLog('开发服务器在线');
+                } else {
+                    console.warn('开发服务器未运行，请启动: python3 dev-server.py');
+                    this.showServerError();
+                }
+            }).catch(error => {
+                debugLog('服务器检查失败:', error);
+            });
+        }
+        
         cleanup() {
             if (this.activeOptimizer && typeof this.activeOptimizer.destroy === 'function') {
                 this.activeOptimizer.destroy();
@@ -277,24 +287,27 @@
     // 创建优化器管理实例
     const optimizerManager = new SiteOptimizerManager();
     
-    // 等待页面加载完成后执行优化
-    async function initOptimizer() {
+    // 初始化优化器
+    function initOptimizer() {
         try {
-            await optimizerManager.init();
+            optimizerManager.init();
         } catch (error) {
             console.error('优化器初始化失败:', error);
             if (DEV_CONFIG.enableErrorReporting) {
-                // 在开发模式下显示详细错误信息
                 console.error('详细错误信息:', error.stack);
             }
         }
     }
     
-    // 页面加载完成后执行优化
+    // 立即执行优化，不等待DOM加载
+    initOptimizer();
+    
+    // 同时监听DOM变化，确保动态内容也被处理
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initOptimizer);
-    } else {
-        initOptimizer();
+        document.addEventListener('DOMContentLoaded', () => {
+            debugLog('DOM加载完成，重新检查优化');
+            // 可以在这里添加额外的检查逻辑
+        });
     }
     
     // 页面卸载时清理资源
