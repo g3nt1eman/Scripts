@@ -25,6 +25,13 @@ window.UaaOptimizer = {
                 opacity: 0 !important;
             }
             
+            /* 隐藏shortcut_box广告区域 */
+            .shortcut_box {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+            }
+            
             /* 隐藏其他可能的广告元素 */
             .ad_box,
             .advertisement,
@@ -48,9 +55,10 @@ window.UaaOptimizer = {
     },
     
     removeAds() {
-        // 移除banner_box及相关广告元素
+        // 移除banner_box、shortcut_box及相关广告元素
         const adSelectors = [
             '.banner_box',
+            '.shortcut_box',
             '.ad_box',
             '.advertisement',
             '.ads',

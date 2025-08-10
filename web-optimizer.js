@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         多网站优化器 (纯模块化版本)
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  优化多个网站的界面显示，移除广告和不必要的元素 (纯模块化架构，无内联代码)
 // @author       You
 // @match        https://sspai.com/*
