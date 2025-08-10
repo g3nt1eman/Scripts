@@ -1,17 +1,17 @@
 // 松鼠症仓库网站优化模块
 window.Ahri8Optimizer = {
     name: '松鼠症仓库优化',
-    version: '1.0.0',
+    version: '1.1.0',
     initialized: false,
     observer: null,
     
     init() {
         if (this.initialized) {
-            console.log('松鼠症仓库优化器已初始化，跳过重复初始化');
+            OptimizerUtils.log(this.name, '已初始化，跳过重复初始化', 'warn');
             return;
         }
         this.initialized = true;
-        console.log('正在优化松鼠症仓库网站...');
+        OptimizerUtils.log(this.name, '开始优化网站');
         this.injectStyles();
         this.injectVideoStyles();
         this.removeAds();
@@ -98,38 +98,26 @@ window.Ahri8Optimizer = {
             }
         `;
 
-        const style = document.createElement('style');
-        style.textContent = styleSheet;
-        document.head.appendChild(style);
-        console.log('已注入松鼠症仓库广告屏蔽样式');
+        OptimizerUtils.injectStyles(styleSheet, 'ahri8-ad-blocker-styles');
+        OptimizerUtils.log(this.name, '广告屏蔽样式注入完成', 'success');
     },
     
     // 注入视频过滤样式
     injectVideoStyles() {
-        const videoStyles = `
-            /* 视频画廊项 */
+        const videoFilterCSS = `
+            /* 视频过滤 */
             div[id^="ads-group-"]:has(.ribbon-left.ribbon-blue),
             div[id^="ads-group-"]:has(a[href*="route="]),
             div[id^="ads-group-"]:has(img[data-src*="jp.netcdn.space"]),
-            /* 额外的行元素 */
             div.col-lg-12 > .row {
                 display: none !important;
                 visibility: hidden !important;
                 opacity: 0 !important;
-                height: 0 !important;
-                width: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                position: absolute !important;
-                pointer-events: none !important;
-                z-index: -9999 !important;
             }
         `;
-
-        const style = document.createElement('style');
-        style.textContent = videoStyles;
-        document.head.appendChild(style);
-        console.log('已注入松鼠症仓库视频过滤样式');
+        
+        OptimizerUtils.injectStyles(videoFilterCSS, 'ahri8-video-filter-styles');
+        OptimizerUtils.log(this.name, '视频过滤样式注入完成', 'success');
     },
     
     // 清理广告脚本
@@ -145,17 +133,9 @@ window.Ahri8Optimizer = {
     
     // 清理全局变量
     cleanGlobalVars() {
-        const varsToClean = [
-            'popMagic', 'ExoLoader', 'AdProvider', 'adsbyjuicy', 'ExoVideoSlider',
-            'SmartPopunder', '_pop', 'ppu', 'ad_idzone', 'adConfig'
-        ];
-        
-        varsToClean.forEach(varName => {
-            if (window[varName]) {
-                window[varName] = undefined;
-                console.log(`已清理松鼠症仓库全局变量: ${varName}`);
-            }
-        });
+        const varsToClean = ['popMagic', 'ExoLoader', 'AdProvider', 'adsbyjuicy'];
+        OptimizerUtils.cleanGlobalVariables(varsToClean);
+        OptimizerUtils.log(this.name, '全局广告变量清理完成', 'success');
     },
     
     // 移除广告元素
@@ -236,45 +216,35 @@ window.Ahri8Optimizer = {
     
     // 设置链接处理器
     setupLinkHandler() {
-        document.body.addEventListener('click', this.handleLinkOpen);
+        // 绑定this上下文，确保可以正确移除
+        this.boundHandleLinkOpen = this.handleLinkOpen.bind(this);
+        document.body.addEventListener('click', this.boundHandleLinkOpen);
         console.log('已设置松鼠症仓库链接处理器');
     },
     
     // 启动观察器监听动态内容
     startObserver() {
-        // 带节流，避免高频触发导致卡顿
-        let scheduled = false;
-        const schedule = () => {
-            if (scheduled) return;
-            scheduled = true;
-            requestAnimationFrame(() => {
-                try {
-                    this.removeAds();
-                    this.removeVideos();
-                    this.cleanGlobalVars();
-                } finally {
-                    scheduled = false;
-                }
-            });
-        };
-
-        this.observer = new MutationObserver(schedule);
-        
-        this.observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'style', 'id']
+        // 使用通用工具创建观察器
+        this.observer = OptimizerUtils.createMutationObserver(() => {
+            this.removeAds();
+            this.removeVideos();
+            this.cleanGlobalVars();
         });
         
-        console.log('已启动松鼠症仓库DOM观察器（节流）');
+        OptimizerUtils.log(this.name, '已启动DOM观察器');
     },
     
     // 安排延迟清理
     scheduleDelayedCleanup() {
-        // 额外的延迟检查
-        setTimeout(() => this.removeVideos(), 1000);
-        setTimeout(() => this.removeVideos(), 2000);
+        // 使用单个延迟任务，避免重复执行
+        this.delayedCleanupTimer = setTimeout(() => {
+            this.removeVideos();
+            // 再次延迟检查，确保动态内容被清理
+            this.delayedCleanupTimer = setTimeout(() => {
+                this.removeVideos();
+                this.delayedCleanupTimer = null;
+            }, 1000);
+        }, 1000);
         console.log('已安排松鼠症仓库延迟清理任务');
     },
     
@@ -285,7 +255,16 @@ window.Ahri8Optimizer = {
         }
         
         // 移除事件监听器
-        document.body.removeEventListener('click', this.handleLinkOpen);
+        if (this.boundHandleLinkOpen) {
+            document.body.removeEventListener('click', this.boundHandleLinkOpen);
+            this.boundHandleLinkOpen = null;
+        }
+        
+        // 清理延迟任务定时器
+        if (this.delayedCleanupTimer) {
+            clearTimeout(this.delayedCleanupTimer);
+            this.delayedCleanupTimer = null;
+        }
         
         console.log('松鼠症仓库优化器已清理');
         this.initialized = false;

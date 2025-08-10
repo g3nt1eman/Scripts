@@ -1,17 +1,17 @@
 // 直播吧广告移除模块
 window.Zhibo8Optimizer = {
     name: '直播吧优化',
-    version: '1.0.0',
+    version: '1.1.0',
     initialized: false,
     observer: null,
     
     init() {
         if (this.initialized) {
-            console.log('直播吧优化器已初始化，跳过重复初始化');
+            OptimizerUtils.log(this.name, '已初始化，跳过重复初始化', 'warn');
             return;
         }
         this.initialized = true;
-        console.log('正在优化直播吧网站...');
+        OptimizerUtils.log(this.name, '开始优化网站');
         this.removeAds();
         this.startObserver();
     },
@@ -35,41 +35,31 @@ window.Zhibo8Optimizer = {
             '.vct-right'
         ];
         
-        // 移除匹配的元素
-        adSelectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
-                element.remove();
-                console.log(`已移除广告元素: ${selector}`);
-            });
-        });
+        const removedCount = OptimizerUtils.removeElementsBySelectors(adSelectors);
+        if (removedCount > 0) {
+            OptimizerUtils.log(this.name, `移除了 ${removedCount} 个广告元素`, 'success');
+        }
     },
     
     startObserver() {
-        // 监听动态加载的广告（带节流）
-        let scheduled = false;
-        const schedule = () => {
-            if (scheduled) return;
-            scheduled = true;
-            setTimeout(() => {
-                try { this.removeAds(); } finally { scheduled = false; }
-            }, 120);
-        };
-
-        this.observer = new MutationObserver(schedule);
-        
-        this.observer.observe(document.body, {
+        // 使用通用工具创建观察器
+        this.observer = OptimizerUtils.createMutationObserver(() => {
+            this.removeAds();
+        }, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: false // 直播吧主要是DOM结构变化
         });
+        
+        OptimizerUtils.log(this.name, '已启动DOM观察器');
     },
     
     destroy() {
         if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
-            console.log('直播吧优化器已清理');
         }
         this.initialized = false;
+        OptimizerUtils.log(this.name, '优化器已清理', 'success');
     }
 };

@@ -1,17 +1,17 @@
 // 疯情书库网站优化模块
 window.AabookOptimizer = {
     name: '疯情书库优化',
-    version: '1.0.0',
+    version: '1.1.0',
     initialized: false,
     observer: null,
     
     init() {
         if (this.initialized) {
-            console.log('疯情书库优化器已初始化，跳过重复初始化');
+            OptimizerUtils.log(this.name, '已初始化，跳过重复初始化', 'warn');
             return;
         }
         this.initialized = true;
-        console.log('正在优化疯情书库网站...');
+        OptimizerUtils.log(this.name, '开始优化网站');
         this.removeAds();
         this.startObserver();
     },
@@ -98,67 +98,64 @@ window.AabookOptimizer = {
     // 移除广告的核心函数
     removeElements(selectors, checkPreserved = false) {
         const uniqueSelectors = Array.from(new Set(selectors));
-        const elements = document.querySelectorAll(uniqueSelectors.join(','));
-        const preservedClasses = this.getPreservedClasses();
+        let removedCount = 0;
         
-        elements.forEach(element => {
-            if (checkPreserved) {
-                // 检查是否包含需要保留的类名
-                const shouldPreserve = preservedClasses.some(className =>
-                    element.classList.contains(className) ||
-                    element.closest(`.${className}`)
-                );
-                if (!shouldPreserve) {
-                    element.remove();
-                    console.log(`已移除疯情书库广告元素: ${element.tagName}`);
-                }
-            } else {
-                element.remove();
-                console.log(`已移除疯情书库广告元素: ${element.tagName}`);
+        uniqueSelectors.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (checkPreserved) {
+                        const preservedClasses = this.getPreservedClasses();
+                        const shouldPreserve = OptimizerUtils.shouldPreserveElement(element, preservedClasses);
+                        if (!shouldPreserve) {
+                            element.remove();
+                            removedCount++;
+                        }
+                    } else {
+                        element.remove();
+                        removedCount++;
+                    }
+                });
+            } catch (error) {
+                OptimizerUtils.log(this.name, `选择器错误: ${selector}`, 'warn');
             }
         });
+        
+        return removedCount;
     },
     
     // 主要的广告移除函数
     removeAds() {
         const adSelectors = this.getAdSelectors();
+        let totalRemoved = 0;
         
         // 移除各类广告
         Object.entries(adSelectors).forEach(([type, selectorGroup]) => {
-            this.removeElements(selectorGroup, type === 'contentAds');
+            const removed = this.removeElements(selectorGroup, type === 'contentAds');
+            totalRemoved += removed;
         });
+        
+        if (totalRemoved > 0) {
+            OptimizerUtils.log(this.name, `移除了 ${totalRemoved} 个广告元素`, 'success');
+        }
     },
     
     // 启动观察器监听动态内容
     startObserver() {
-        // 监听DOM变化，处理动态加载的广告（带节流）
-        let scheduled = false;
-        const schedule = () => {
-            if (scheduled) return;
-            scheduled = true;
-            setTimeout(() => {
-                try {
-                    this.removeAds();
-                } finally {
-                    scheduled = false;
-                }
-            }, 150);
-        };
-
-        this.observer = new MutationObserver(schedule);
-        
-        this.observer.observe(document.body, {
-            childList: true,
-            subtree: true
+        // 使用通用工具创建观察器
+        this.observer = OptimizerUtils.createMutationObserver(() => {
+            this.removeAds();
         });
+        
+        OptimizerUtils.log(this.name, '已启动DOM观察器');
     },
     
     destroy() {
         if (this.observer) {
             this.observer.disconnect();
             this.observer = null;
-            console.log('疯情书库优化器已清理');
         }
         this.initialized = false;
+        OptimizerUtils.log(this.name, '优化器已清理', 'success');
     }
 };
